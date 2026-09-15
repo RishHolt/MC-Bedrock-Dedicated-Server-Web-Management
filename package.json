@@ -1,0 +1,16 @@
+{
+  "name": "bedrock-client-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=packages/web",
+    "build": "npm run build --workspace=packages/web && npm run build --workspace=packages/server",
+    "preview": "npm run preview --workspace=packages/web",
+    "server": "npm run dev --workspace=packages/server",
+    "server:build": "npm run build --workspace=packages/server",
+    "build:exe": "powershell -Command \"& 'C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe' /nologo /out:BedrockServerManager.exe /target:winexe /optimize+ /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.dll packages\\server\\tray_app.cs\""
+  }
+}

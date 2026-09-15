@@ -1,0 +1,4 @@
+# local bedrock dedicated server file
+bds/
+
+node_modules/
