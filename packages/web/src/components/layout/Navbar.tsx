@@ -11,10 +11,21 @@ import {
   Sun,
   Moon,
   Sparkles,
+  AlertTriangle,
+  Loader2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { useServerStore } from '@/stores/serverStore'
+import { toast } from 'sonner'
 
 export const Navbar: React.FC = () => {
   const {
@@ -38,6 +49,43 @@ export const Navbar: React.FC = () => {
     }
     return true
   })
+
+  const [confirmAction, setConfirmAction] = React.useState<'stop' | 'restart' | 'kill' | null>(null)
+  const [isActionLoading, setIsActionLoading] = React.useState(false)
+
+  const handleStart = async () => {
+    toast.info('Starting Bedrock Dedicated Server...')
+    try {
+      await startServer()
+    } catch {
+      toast.error('Failed to start server')
+    }
+  }
+
+  const handleConfirmAction = async () => {
+    if (!confirmAction) return
+    setIsActionLoading(true)
+    try {
+      if (confirmAction === 'stop') {
+        toast.info('Stopping Bedrock Server...')
+        await stopServer()
+        toast.success('Server stopped')
+      } else if (confirmAction === 'restart') {
+        toast.info('Restarting Bedrock Server...')
+        await restartServer()
+        toast.success('Server restarting...')
+      } else if (confirmAction === 'kill') {
+        toast.warning('Force killing BDS process...')
+        await killServer()
+        toast.error('BDS process forcefully terminated')
+      }
+      setConfirmAction(null)
+    } catch {
+      toast.error(`Failed to ${confirmAction} server`)
+    } finally {
+      setIsActionLoading(false)
+    }
+  }
 
   React.useEffect(() => {
     if (isDark) {
@@ -122,7 +170,7 @@ export const Navbar: React.FC = () => {
           {serverState === 'offline' ? (
             <Button
               size="sm"
-              onClick={startServer}
+              onClick={handleStart}
               className="gap-1.5 shadow-sm"
             >
               <Play className="size-3.5 fill-current" />
@@ -133,7 +181,7 @@ export const Navbar: React.FC = () => {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={stopServer}
+                onClick={() => setConfirmAction('stop')}
                 disabled={serverState !== 'online'}
                 className="gap-1 border-border text-foreground hover:bg-muted"
               >
@@ -143,7 +191,7 @@ export const Navbar: React.FC = () => {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={restartServer}
+                onClick={() => setConfirmAction('restart')}
                 disabled={serverState !== 'online'}
                 className="gap-1 hover:text-foreground"
               >
@@ -153,7 +201,7 @@ export const Navbar: React.FC = () => {
               <Button
                 size="icon-sm"
                 variant="destructive"
-                onClick={killServer}
+                onClick={() => setConfirmAction('kill')}
                 title="Force Kill Process"
                 className="size-7"
               >
@@ -173,6 +221,53 @@ export const Navbar: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* Server Lifecycle Confirmation Dialog */}
+      <Dialog open={!!confirmAction} onOpenChange={() => setConfirmAction(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {confirmAction === 'kill' ? (
+                <Skull className="size-5 text-destructive" />
+              ) : (
+                <AlertTriangle className="size-5 text-amber-500" />
+              )}
+              <span>
+                {confirmAction === 'stop' && 'Stop Bedrock Server?'}
+                {confirmAction === 'restart' && 'Restart Bedrock Server?'}
+                {confirmAction === 'kill' && 'Force Kill BDS Process?'}
+              </span>
+            </DialogTitle>
+            <DialogDescription>
+              {confirmAction === 'stop' &&
+                'All connected players will be disconnected and server world data will be saved to disk.'}
+              {confirmAction === 'restart' &&
+                'Active player sessions will be ended and the server binary will immediately restart.'}
+              {confirmAction === 'kill' &&
+                'WARNING: The bedrock_server process will be forcefully terminated (SIGKILL). Any unsaved LevelDB chunks in memory could be corrupted.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setConfirmAction(null)}
+              disabled={isActionLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant={confirmAction === 'kill' ? 'destructive' : 'default'}
+              onClick={handleConfirmAction}
+              disabled={isActionLoading}
+            >
+              {isActionLoading && <Loader2 className="size-3.5 animate-spin mr-1" />}
+              {confirmAction === 'stop' && 'Stop Server'}
+              {confirmAction === 'restart' && 'Restart Server'}
+              {confirmAction === 'kill' && 'Force Kill'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </header>
   )
 }

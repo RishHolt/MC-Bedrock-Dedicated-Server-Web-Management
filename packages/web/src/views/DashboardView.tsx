@@ -15,11 +15,23 @@ import {
   Zap,
   PackageCheck,
   Archive,
+  UserX,
+  Loader2,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { useServerStore } from '@/stores/serverStore'
+import type { Player } from '@/types/server'
+import { toast } from 'sonner'
 
 export const DashboardView: React.FC = () => {
   const {
@@ -36,6 +48,8 @@ export const DashboardView: React.FC = () => {
   } = useServerStore()
 
   const [copied, setCopied] = React.useState(false)
+  const [playerToKick, setPlayerToKick] = React.useState<Player | null>(null)
+  const [isKicking, setIsKicking] = React.useState(false)
 
   const copyAddress = () => {
     const addr = tunnel.active
@@ -44,6 +58,21 @@ export const DashboardView: React.FC = () => {
     navigator.clipboard.writeText(addr)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+    toast.success('Bedrock server address copied to clipboard')
+  }
+
+  const handleConfirmKick = async () => {
+    if (!playerToKick) return
+    setIsKicking(true)
+    try {
+      await kickPlayer(playerToKick.name)
+      toast.success(`${playerToKick.name} has been kicked`)
+      setPlayerToKick(null)
+    } catch {
+      toast.error(`Failed to kick ${playerToKick.name}`)
+    } finally {
+      setIsKicking(false)
+    }
   }
 
   const formatUptime = (sec: number) => {
@@ -227,7 +256,7 @@ export const DashboardView: React.FC = () => {
                   <Button
                     size="xs"
                     variant="ghost"
-                    onClick={() => kickPlayer(player.xuid)}
+                    onClick={() => setPlayerToKick(player)}
                     className="text-destructive hover:bg-destructive/10 text-[11px] h-6 px-2"
                   >
                     Kick
@@ -331,6 +360,38 @@ export const DashboardView: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Kick Player Confirmation Dialog */}
+      <Dialog open={!!playerToKick} onOpenChange={() => setPlayerToKick(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserX className="size-5 text-destructive" />
+              <span>Kick Player</span>
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to kick <span className="font-semibold text-foreground">{playerToKick?.name}</span> from the server? They will be immediately disconnected.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setPlayerToKick(null)}
+              disabled={isKicking}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmKick}
+              disabled={isKicking}
+            >
+              {isKicking && <Loader2 className="size-3.5 animate-spin mr-1" />}
+              Kick Player
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

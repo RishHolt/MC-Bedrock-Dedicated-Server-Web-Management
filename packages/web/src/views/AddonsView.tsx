@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/dialog'
 import { useServerStore } from '@/stores/serverStore'
 import type { AddonPack } from '@/types/server'
+import { toast } from 'sonner'
 
 export const AddonsView: React.FC = () => {
   const { packs, fetchPacks, togglePack, uploadPack, deletePack } = useServerStore()
@@ -36,8 +37,8 @@ export const AddonsView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [isDragging, setIsDragging] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
-  const [uploadMessage, setUploadMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [packToDelete, setPackToDelete] = useState<AddonPack | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
@@ -64,7 +65,7 @@ export const AddonsView: React.FC = () => {
     if (fileArray.length === 0) return
 
     setIsUploading(true)
-    setUploadMessage(null)
+    const toastId = toast.loading(`Installing ${fileArray.length} pack(s)...`)
 
     let totalInstalled = 0
     let lastError: string | null = null
@@ -80,17 +81,11 @@ export const AddonsView: React.FC = () => {
 
     setIsUploading(false)
     if (totalInstalled > 0) {
-      setUploadMessage({
-        type: 'success',
-        text: `Extracted & installed ${totalInstalled} pack(s) successfully!`,
-      })
-      setTimeout(() => setUploadMessage(null), 4500)
+      toast.success(`Installed ${totalInstalled} pack(s) successfully!`, { id: toastId })
     } else if (lastError) {
-      setUploadMessage({
-        type: 'error',
-        text: `Upload failed: ${lastError}`,
-      })
-      setTimeout(() => setUploadMessage(null), 6000)
+      toast.error(`Upload failed: ${lastError}`, { id: toastId })
+    } else {
+      toast.dismiss(toastId)
     }
   }
 
@@ -109,10 +104,27 @@ export const AddonsView: React.FC = () => {
     }
   }
 
+  const handleToggle = async (uuid: string, type: AddonPack['type'], checked: boolean) => {
+    try {
+      await togglePack(uuid, type, checked)
+      toast.success(checked ? 'Pack activated for world' : 'Pack deactivated')
+    } catch {
+      toast.error('Failed to toggle pack')
+    }
+  }
+
   const confirmDelete = async () => {
     if (!packToDelete) return
-    await deletePack(packToDelete.uuid)
-    setPackToDelete(null)
+    setIsDeleting(true)
+    try {
+      await deletePack(packToDelete.uuid)
+      toast.success(`"${packToDelete.name}" deleted successfully`)
+      setPackToDelete(null)
+    } catch {
+      toast.error(`Failed to delete "${packToDelete.name}"`)
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   const formatSize = (bytes: number) => {
@@ -228,18 +240,6 @@ export const AddonsView: React.FC = () => {
               Archives are automatically unzipped into behavior_packs/ or resource_packs/ and parsed via manifest.json
             </p>
           </div>
-          {uploadMessage && (
-            <div
-              className={`mt-2 text-xs font-medium px-3 py-1 rounded-full shadow-2xs border ${
-                uploadMessage.type === 'success'
-                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                  : 'bg-destructive/10 text-destructive border-destructive/20'
-              }`}
-            >
-              {uploadMessage.type === 'success' ? '✓ ' : '✕ '}
-              {uploadMessage.text}
-            </div>
-          )}
         </div>
       </div>
 
@@ -305,7 +305,7 @@ export const AddonsView: React.FC = () => {
                   </span>
                   <Switch
                     checked={pack.enabled}
-                    onCheckedChange={(checked) => togglePack(pack.uuid, pack.type, checked)}
+                    onCheckedChange={(checked) => handleToggle(pack.uuid, pack.type, checked)}
                   />
                 </div>
               </CardHeader>
@@ -348,10 +348,11 @@ export const AddonsView: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="pt-2">
-            <Button variant="outline" onClick={() => setPackToDelete(null)}>
+            <Button variant="outline" onClick={() => setPackToDelete(null)} disabled={isDeleting}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={confirmDelete}>
+            <Button variant="destructive" onClick={confirmDelete} disabled={isDeleting}>
+              {isDeleting ? <Loader2 className="size-3.5 animate-spin mr-1" /> : null}
               Delete Pack
             </Button>
           </DialogFooter>

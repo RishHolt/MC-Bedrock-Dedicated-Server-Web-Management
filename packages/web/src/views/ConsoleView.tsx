@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useServerStore } from '@/stores/serverStore'
+import { toast } from 'sonner'
 
 const QUICK_COMMANDS = [
   'help',
@@ -160,6 +161,7 @@ export const ConsoleView: React.FC = () => {
     if (xtermInstance.current) {
       xtermInstance.current.clear()
       xtermInstance.current.writeln('\x1b[90mConsole cleared.\x1b[0m')
+      toast.info('Console cleared')
     }
   }
 
@@ -172,6 +174,7 @@ export const ConsoleView: React.FC = () => {
     a.download = `bds-console-${new Date().toISOString().slice(0, 10)}.log`
     a.click()
     URL.revokeObjectURL(url)
+    toast.success('Console log exported')
   }
 
   const scrollToBottom = () => {

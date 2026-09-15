@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { useServerStore } from '@/stores/serverStore'
 import type { BedrockConfig } from '@/types/server'
+import { toast } from 'sonner'
 
 export const SettingsView: React.FC = () => {
   const { config, updateConfig, saveConfig, fetchConfig, fetchRawConfig, saveRawConfig } = useServerStore()
@@ -46,6 +47,7 @@ export const SettingsView: React.FC = () => {
     const text = await fetchRawConfig()
     if (text) setRawText(text)
     setLoading(false)
+    toast.success('Configuration reloaded from disk')
   }
 
   const handleSave = async () => {
@@ -55,6 +57,9 @@ export const SettingsView: React.FC = () => {
     if (ok) {
       setSavedSuccess(true)
       setTimeout(() => setSavedSuccess(false), 2000)
+      toast.success('server.properties saved successfully')
+    } else {
+      toast.error('Failed to save configuration')
     }
   }
 
@@ -65,6 +70,9 @@ export const SettingsView: React.FC = () => {
     if (ok) {
       setSavedSuccess(true)
       setTimeout(() => setSavedSuccess(false), 2000)
+      toast.success('server.properties saved successfully')
+    } else {
+      toast.error('Failed to save raw configuration')
     }
   }
 

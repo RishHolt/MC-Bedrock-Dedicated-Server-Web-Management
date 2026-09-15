@@ -14,6 +14,7 @@ import {
   Plus,
   RefreshCw,
   FolderPlus,
+  Loader2,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -31,10 +32,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
 import { useServerStore } from '@/stores/serverStore'
 import type { FileItem } from '@/types/server'
+import { toast } from 'sonner'
 
 export const FileManagerView: React.FC = () => {
   const { files, fetchFiles, readFile, writeFile, deleteFile, createDirectory } = useServerStore()
@@ -44,14 +47,17 @@ export const FileManagerView: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [saveLoading, setSaveLoading] = useState(false)
   const [deleteConfirmTarget, setDeleteConfirmTarget] = useState<FileItem | null>(null)
-  
+  const [isDeleting, setIsDeleting] = useState(false)
+
   // New folder dialog
   const [isNewFolderOpen, setIsNewFolderOpen] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false)
 
   // New file dialog
   const [isNewFileOpen, setIsNewFileOpen] = useState(false)
   const [newFileName, setNewFileName] = useState('')
+  const [isCreatingFile, setIsCreatingFile] = useState(false)
 
   // Load files when folder changes
   useEffect(() => {
@@ -61,7 +67,10 @@ export const FileManagerView: React.FC = () => {
 
   const handleRefresh = () => {
     setLoading(true)
-    fetchFiles(currentFolder).finally(() => setLoading(false))
+    fetchFiles(currentFolder).finally(() => {
+      setLoading(false)
+      toast.success('File list refreshed')
+    })
   }
 
   const handleNavigate = (path: string) => {
@@ -95,38 +104,66 @@ export const FileManagerView: React.FC = () => {
     const ok = await writeFile(editingFile.path, fileContent)
     setSaveLoading(false)
     if (ok) {
+      toast.success(`"${editingFile.name}" saved successfully`)
       setEditingFile(null)
+    } else {
+      toast.error(`Failed to save "${editingFile.name}"`)
     }
   }
 
   const handleDeleteConfirm = async () => {
     if (!deleteConfirmTarget) return
-    await deleteFile(deleteConfirmTarget.path)
-    setDeleteConfirmTarget(null)
+    setIsDeleting(true)
+    try {
+      await deleteFile(deleteConfirmTarget.path)
+      toast.success(`"${deleteConfirmTarget.name}" deleted permanently`)
+      setDeleteConfirmTarget(null)
+    } catch {
+      toast.error(`Failed to delete "${deleteConfirmTarget.name}"`)
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return
-    const target = currentFolder === '/' 
-      ? `/${newFolderName.trim()}` 
+    setIsCreatingFolder(true)
+    const target = currentFolder === '/'
+      ? `/${newFolderName.trim()}`
       : `${currentFolder}/${newFolderName.trim()}`
-    await createDirectory(target)
-    setNewFolderName('')
-    setIsNewFolderOpen(false)
+    try {
+      await createDirectory(target)
+      toast.success(`Folder "${newFolderName.trim()}" created`)
+      setNewFolderName('')
+      setIsNewFolderOpen(false)
+    } catch {
+      toast.error('Failed to create folder')
+    } finally {
+      setIsCreatingFolder(false)
+    }
   }
 
   const handleCreateFile = async () => {
     if (!newFileName.trim()) return
-    const target = currentFolder === '/' 
-      ? `/${newFileName.trim()}` 
+    setIsCreatingFile(true)
+    const target = currentFolder === '/'
+      ? `/${newFileName.trim()}`
       : `${currentFolder}/${newFileName.trim()}`
-    await writeFile(target, '')
-    setNewFileName('')
-    setIsNewFileOpen(false)
+    try {
+      await writeFile(target, '')
+      toast.success(`File "${newFileName.trim()}" created`)
+      setNewFileName('')
+      setIsNewFileOpen(false)
+    } catch {
+      toast.error('Failed to create file')
+    } finally {
+      setIsCreatingFile(false)
+    }
   }
 
   const handleDownload = (file: FileItem) => {
     window.open(`/api/files/download?path=${encodeURIComponent(file.path)}`, '_blank')
+    toast.info(`Downloading "${file.name}"...`)
   }
 
   const getFileIcon = (file: FileItem) => {
@@ -339,7 +376,7 @@ export const FileManagerView: React.FC = () => {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingFile(null)}>
+            <Button variant="outline" onClick={() => setEditingFile(null)} disabled={saveLoading}>
               Cancel
             </Button>
             <Button
@@ -347,7 +384,7 @@ export const FileManagerView: React.FC = () => {
               disabled={saveLoading}
               className="gap-1.5 shadow-sm"
             >
-              <Save className="size-3.5" />
+              {saveLoading ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
               <span>{saveLoading ? 'Saving...' : 'Save Changes'}</span>
             </Button>
           </DialogFooter>
@@ -362,17 +399,18 @@ export const FileManagerView: React.FC = () => {
               <Trash2 className="size-4" />
               <span>Confirm Delete</span>
             </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to permanently delete{' '}
+              <span className="font-mono text-foreground font-semibold">{deleteConfirmTarget?.path}</span>?
+              This action cannot be undone.
+            </DialogDescription>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">
-            Are you sure you want to permanently delete{' '}
-            <span className="font-mono text-foreground font-semibold">{deleteConfirmTarget?.path}</span>?
-            This action cannot be undone.
-          </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirmTarget(null)}>
+            <Button variant="outline" onClick={() => setDeleteConfirmTarget(null)} disabled={isDeleting}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteConfirm}>
+            <Button variant="destructive" onClick={handleDeleteConfirm} disabled={isDeleting}>
+              {isDeleting ? <Loader2 className="size-3.5 animate-spin mr-1" /> : null}
               Delete Permanently
             </Button>
           </DialogFooter>
@@ -392,13 +430,15 @@ export const FileManagerView: React.FC = () => {
               onChange={(e) => setNewFolderName(e.target.value)}
               placeholder="e.g. scripts or logs"
               onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
+              disabled={isCreatingFolder}
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsNewFolderOpen(false)}>
+            <Button variant="outline" onClick={() => setIsNewFolderOpen(false)} disabled={isCreatingFolder}>
               Cancel
             </Button>
-            <Button onClick={handleCreateFolder} className="shadow-sm">
+            <Button onClick={handleCreateFolder} className="shadow-sm" disabled={isCreatingFolder}>
+              {isCreatingFolder ? <Loader2 className="size-3.5 animate-spin mr-1" /> : null}
               Create Folder
             </Button>
           </DialogFooter>
@@ -418,13 +458,15 @@ export const FileManagerView: React.FC = () => {
               onChange={(e) => setNewFileName(e.target.value)}
               placeholder="e.g. motd.txt or rules.json"
               onKeyDown={(e) => e.key === 'Enter' && handleCreateFile()}
+              disabled={isCreatingFile}
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsNewFileOpen(false)}>
+            <Button variant="outline" onClick={() => setIsNewFileOpen(false)} disabled={isCreatingFile}>
               Cancel
             </Button>
-            <Button onClick={handleCreateFile} className="shadow-sm">
+            <Button onClick={handleCreateFile} className="shadow-sm" disabled={isCreatingFile}>
+              {isCreatingFile ? <Loader2 className="size-3.5 animate-spin mr-1" /> : null}
               Create File
             </Button>
           </DialogFooter>

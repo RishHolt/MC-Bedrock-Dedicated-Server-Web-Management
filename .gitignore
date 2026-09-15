@@ -1,4 +1,46 @@
-# local bedrock dedicated server file
-bds/
+# Bedrock Dedicated Server runtime directory (anchored to repo root)
+/bds/
+backups/
 
+# Dependencies
 node_modules/
+
+# Build outputs
+dist/
+dist-ssr/
+*.tsbuildinfo
+
+# Native build artifacts
+*.pdb
+*.obj
+*.ilk
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment & local files
+.env
+.env.local
+.env.*.local
+
+# Editor & IDE directories
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS generated files
+.DS_Store
+Thumbs.db
+Desktop.ini
