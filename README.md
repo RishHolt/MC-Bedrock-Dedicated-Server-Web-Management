@@ -1,6 +1,6 @@
 # Bedrock Server Manager
 
-A modern, self-hosted web management dashboard for **Minecraft Bedrock Dedicated Server (BDS)**, inspired by [Fabricator](https://docs.fabricator.site/).
+A modern, self-hosted web management dashboard for **Minecraft Bedrock Dedicated Server**, inspired by [Fabricator](https://docs.fabricator.site/).
 
 Built with **React 19**, **Base UI (`@base-ui/react`)**, **Fastify 5**, and styled with **shadcn** on **Tailwind CSS v4**.
 
